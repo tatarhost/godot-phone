@@ -58,10 +58,14 @@ jobs:
           python3 -m pip install --user --upgrade scons
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Install Godot Android Swappy dependency
+        working-directory: godot
+        run: python3 misc/scripts/install_swappy_android.py
+
       - name: Compile Godot editor native engine for Android ARM64
         working-directory: godot
         run: |
-          scons platform=android arch=arm64 production=yes target=editor -j2
+          scons platform=android arch=arm64 production=yes target=editor swappy=yes -j2
 
       - name: Package complete Android editor APK
         working-directory: godot/platform/android/java
