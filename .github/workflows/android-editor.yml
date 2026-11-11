@@ -1,0 +1,87 @@
+name: Build Godot Phone (Android)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: godot-phone-android
+  cancel-in-progress: true
+
+jobs:
+  build-android-editor:
+    name: Build Android editor (arm64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Godot source
+        uses: actions/checkout@v4
+        with:
+          repository: godotengine/godot
+          ref: 4.7.2-stable
+          path: godot
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.0.13004108"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.0.13004108" >> "$GITHUB_ENV"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config scons python3-dev             libx11-dev libxcursor-dev libxinerama-dev libgl1-mesa-dev libglu1-mesa-dev             libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev             libwayland-dev libxkbcommon-dev libfontconfig1-dev libssl-dev             libenet-dev libfreetype-dev libharfbuzz-dev libtheora-dev             libvorbis-dev libopus-dev libvulkan-dev yasm nasm
+          python3 -m pip install --user --upgrade scons
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build Android editor
+        working-directory: godot
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
+        run: |
+          scons platform=android arch=arm64 production=yes target=editor generate_android_binaries=yes -j2
+
+      - name: Verify APK
+        id: apk
+        run: |
+          APK="$(find godot/bin/android_editor_builds -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          mkdir -p dist
+          cp "$APK" dist/Godot-Phone-Android-arm64.apk
+          echo "apk=dist/Godot-Phone-Android-arm64.apk" >> "$GITHUB_OUTPUT"
+          ls -lh dist/Godot-Phone-Android-arm64.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Godot-Phone-Android-arm64
+          path: dist/Godot-Phone-Android-arm64.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish rolling GitHub prerelease
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view nightly --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create nightly --repo "${{ github.repository }}" \
+              --title "Godot Phone — Nightly Android build" \
+              --notes "Автоматическая тестовая сборка Android Editor для arm64. Неофициальная сборка Godot Engine." \
+              --prerelease
+          gh release upload nightly dist/Godot-Phone-Android-arm64.apk \
+            --repo "${{ github.repository }}" --clobber
