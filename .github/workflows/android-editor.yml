@@ -29,6 +29,7 @@ jobs:
           repository: godotengine/godot
           ref: 4.7.2-stable
           path: godot
+          submodules: recursive
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -39,7 +40,10 @@ jobs:
           cache-dependency-path: godot/platform/android/java/*.gradle*
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          # The old "tools" SDK package was removed; v4 installs command-line tools.
+          packages: 'platform-tools'
 
       - name: Install Android SDK and NDK
         run: |
@@ -50,19 +54,14 @@ jobs:
       - name: Install native build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config python3-dev \
-            libx11-dev libxcursor-dev libxinerama-dev libgl1-mesa-dev libglu1-mesa-dev \
-            libasound2-dev libpulse-dev libudev-dev libxi-dev libxrandr-dev \
-            libwayland-dev libxkbcommon-dev libfontconfig1-dev libssl-dev \
-            libenet-dev libfreetype-dev libharfbuzz-dev libtheora-dev \
-            libvorbis-dev libopus-dev libvulkan-dev yasm nasm
+          sudo apt-get install -y build-essential pkg-config python3-dev libssl-dev libenet-dev libfreetype-dev libharfbuzz-dev libtheora-dev libvorbis-dev libopus-dev libvulkan-dev yasm nasm
           python3 -m pip install --user --upgrade scons
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Compile Godot editor native engine for Android ARM64
         working-directory: godot
         run: |
-          scons platform=android arch=arm64 production=yes target=editor generate_android_binaries=yes -j2
+          scons platform=android arch=arm64 production=yes target=editor -j2
 
       - name: Package complete Android editor APK
         working-directory: godot/platform/android/java
@@ -72,7 +71,7 @@ jobs:
 
       - name: Verify and stage APK
         run: |
-          APK="godot/bin/android_editor_builds/android_editor-android-debug.apk"
+          APK="godot/platform/android/java/editor/build/outputs/apk/android/debug/android_editor-android-debug.apk"
           test -s "$APK"
           mkdir -p dist
           cp "$APK" dist/Godot-Phone-Android-arm64.apk
