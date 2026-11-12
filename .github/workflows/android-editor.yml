@@ -112,15 +112,15 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish rolling GitHub prerelease
+      - name: Publish Godot Phone 1.0.1 prerelease
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view nightly --repo "${{ github.repository }}" >/dev/null 2>&1 || \
-            gh release create nightly --repo "${{ github.repository }}" \
-              --title "Godot Phone — Android ARM64 nightly" \
-              --notes "Тестовая сборка полноценного Godot Android Editor из исходников. Архитектура ARM64. Неофициальный проект." \
+          gh release view v1.0.1 --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create v1.0.1 --repo "${{ github.repository }}" \
+              --title "Godot Phone 1.0.1 — Android ARM64" \
+              --notes "Godot Phone 1.0.1. Полноценный Godot Android Editor, сборка ARM64. APK проверяется на целостность, подпись и выравнивание перед публикацией. Неофициальный проект." \
               --prerelease
-          gh release upload nightly dist/Godot-Phone-Android-arm64.apk \
+          gh release upload v1.0.1 dist/Godot-Phone-Android-arm64.apk \
             --repo "${{ github.repository }}" --clobber
