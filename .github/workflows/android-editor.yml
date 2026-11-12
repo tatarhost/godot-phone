@@ -31,6 +31,19 @@ jobs:
           path: godot
           submodules: recursive
 
+      - name: Set Godot Phone version
+        working-directory: godot/platform/android/java/editor
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("build.gradle")
+          s = p.read_text()
+          s = s.replace("versionCode generateVersionCode()", "versionCode 101")
+          s = s.replace("versionName generateVersionName()", 'versionName "1.0.1"')
+          s = s.replace('editorAppName: "Godot Engine 4"', 'editorAppName: "Godot Phone"')
+          p.write_text(s)
+          PY
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -73,7 +86,16 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon generateGodotEditor
 
-      - name: Verify and stage APK
+      - name: Verify APK integrity, signature and alignment
+        run: |
+          APK="godot/platform/android/java/editor/build/outputs/apk/android/debug/android_editor-android-debug.apk"
+          test -s "$APK"
+          unzip -tq "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/zipalign" -c -v 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -E "package:|sdkVersion|targetSdkVersion"
+
+      - name: Stage verified APK
         run: |
           APK="godot/platform/android/java/editor/build/outputs/apk/android/debug/android_editor-android-debug.apk"
           test -s "$APK"
