@@ -38,10 +38,37 @@ jobs:
           from pathlib import Path
           p = Path("build.gradle")
           s = p.read_text()
-          s = s.replace("versionCode generateVersionCode()", "versionCode 101")
-          s = s.replace("versionName generateVersionName()", 'versionName "1.0.1"')
+          s = s.replace("versionCode generateVersionCode()", "versionCode 102")
+          s = s.replace("versionName generateVersionName()", 'versionName "1.0.2"')
           s = s.replace('editorAppName: "Godot Engine 4"', 'editorAppName: "Godot Phone"')
           p.write_text(s)
+          PY
+
+      - name: Enable Android phone screen support
+        working-directory: godot/platform/android/java/editor/src/main
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("AndroidManifest.xml")
+          s = p.read_text()
+          if 'android:smallScreens="false"' not in s:
+              raise SystemExit("Expected upstream smallScreens setting was not found")
+          s = s.replace('android:smallScreens="false"', 'android:smallScreens="true"')
+          s = s.replace('android:screenOrientation="userLandscape"', 'android:screenOrientation="sensorLandscape"')
+          pattern = r'(<activity\\s+android:name="\\.GodotEditor"[^>]*?)(>)'
+          def patch_activity(m):
+              tag = m.group(1)
+              if 'android:resizeableActivity=' not in tag:
+                  tag += ' android:resizeableActivity="true"'
+              if 'android:windowSoftInputMode=' not in tag:
+                  tag += ' android:windowSoftInputMode="adjustResize"'
+              return tag + m.group(2)
+          s, count = re.subn(pattern, patch_activity, s, count=1, flags=re.S)
+          if count != 1 or 'android:resizeableActivity="true"' not in s:
+              raise SystemExit("Could not enable resizable Godot editor activity")
+          p.write_text(s)
+          print("Enabled small-screen support, resizable activity, landscape sensor mode and keyboard resize")
           PY
 
       - name: Set up Java
@@ -112,15 +139,15 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish Godot Phone 1.0.1 prerelease
+      - name: Publish Godot Phone 1.0.2 prerelease
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v1.0.1 --repo "${{ github.repository }}" >/dev/null 2>&1 || \
-            gh release create v1.0.1 --repo "${{ github.repository }}" \
-              --title "Godot Phone 1.0.1 — Android ARM64" \
-              --notes "Godot Phone 1.0.1. Полноценный Godot Android Editor, сборка ARM64. APK проверяется на целостность, подпись и выравнивание перед публикацией. Неофициальный проект." \
+          gh release view v1.0.2 --repo "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create v1.0.2 --repo "${{ github.repository }}" \
+              --title "Godot Phone 1.0.2 — Android ARM64" \
+              --notes "Godot Phone 1.0.2. Исправлена поддержка небольших экранов Android, включено изменение размеров окна и корректная работа экранной клавиатуры. Альбомная ориентация редактора. APK проверяется на целостность, подпись и выравнивание. Неофициальный проект." \
               --prerelease
-          gh release upload v1.0.1 dist/Godot-Phone-Android-arm64.apk \
+          gh release upload v1.0.2 dist/Godot-Phone-Android-arm64.apk \
             --repo "${{ github.repository }}" --clobber
