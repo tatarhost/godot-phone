@@ -56,7 +56,7 @@ jobs:
               raise SystemExit("Expected upstream smallScreens setting was not found")
           s = s.replace('android:smallScreens="false"', 'android:smallScreens="true"')
           s = s.replace('android:screenOrientation="userLandscape"', 'android:screenOrientation="sensorLandscape"')
-          pattern = r'(<activity\\s+android:name="\\.GodotEditor"[^>]*?)(>)'
+          pattern = r'(<activity\s+android:name="\.GodotEditor"[^>]*?)(>)'
           def patch_activity(m):
               tag = m.group(1)
               if 'android:resizeableActivity=' not in tag:
