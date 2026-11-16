@@ -1,0 +1,68 @@
+name: Build NEUROGENESIS 3D Android
+
+on:
+  push:
+    branches: [game/neurogenesis-native]
+    paths:
+      - 'neurogenesis/**'
+      - '.github/workflows/neurogenesis-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neurogenesis-android
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build native Android ARM64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.0.13004108"
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.0.13004108" >> "$GITHUB_ENV"
+
+      - name: Build debug APK
+        working-directory: neurogenesis
+        run: gradle --no-daemon assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK="neurogenesis/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -tq "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging "$APK" | grep -E "package:|sdkVersion|targetSdkVersion"
+          mkdir -p dist
+          cp "$APK" dist/NEUROGENESIS-3D-Android-arm64-debug.apk
+          sha256sum dist/NEUROGENESIS-3D-Android-arm64-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEUROGENESIS-3D-Android-arm64
+          path: dist/NEUROGENESIS-3D-Android-arm64-debug.apk
+          if-no-files-found: error
+          retention-days: 30
