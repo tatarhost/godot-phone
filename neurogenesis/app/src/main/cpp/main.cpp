@@ -118,7 +118,7 @@ struct Sim {
    auto b=joints.size()>1?static_cast<btHingeConstraint*>(joints[1])->getHingeAngle():0.f;
    auto c=joints.size()>2?static_cast<btHingeConstraint*>(joints[2])->getHingeAngle():0.f;
    auto d=joints.size()>3?static_cast<btHingeConstraint*>(joints[3])->getHingeAngle():0.f;
-   std::array<float,Inputs> in={a,b,c,d,0.f,0.f,1.f,std::sin(elapsed*2.f)};
+   std::array<float,Brain::Inputs> in={a,b,c,d,0.f,0.f,1.f,std::sin(elapsed*2.f)};
    auto out=brain.think(in);
    for(size_t i=0;i<joints.size()&&i<out.size();i++)static_cast<btHingeConstraint*>(joints[i])->enableAngularMotor(true,out[i]*5.f,2.2f);
   }
@@ -180,7 +180,7 @@ void android_main(android_app*state){
  app_dummy();App app;app.app=state;state->userData=&app;state->onAppCmd=handle_cmd;state->onInputEvent=handle_input;
  while(true){
   int events;android_poll_source*source;
-  while(ALooper_pollAll(app.ready?0: -1,nullptr,&events,(void**)&source)>=0){if(source)source->process(state,source);if(state->destroyRequested){app.shutdown();return;}}
+  while(ALooper_pollOnce(app.ready?0: -1,nullptr,&events,(void**)&source)>=0){if(source)source->process(state,source);if(state->destroyRequested){app.shutdown();return;}}
   if(app.ready){app.sim.step(1.f/60.f);app.render();}
  }
 }
