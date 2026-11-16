@@ -2,7 +2,7 @@ name: Build NEUROGENESIS 3D Android
 
 on:
   push:
-    branches: [game/neurogenesis-native]
+    branches: [main, game/neurogenesis-native]
     paths:
       - 'neurogenesis/**'
       - '.github/workflows/neurogenesis-android.yml'
